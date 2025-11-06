@@ -288,10 +288,12 @@ fn decode_execute(
             ram[*index_register as usize + 2] = decimal;
         }
         op if op & 0xF0FF == 0xF055 => {
+            //Ambiguous instruction
             ram[*index_register as usize..=*index_register as usize + x]
                 .copy_from_slice(&general_purpose_registers[0..=x]);
         }
         op if op & 0xF0FF == 0xF065 => {
+            //Ambiguous instruction
             general_purpose_registers[0..=x]
                 .copy_from_slice(&ram[*index_register as usize..=*index_register as usize + x]);
         }
