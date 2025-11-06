@@ -1,10 +1,7 @@
-use std::{
-    io::{Write, stdout},
-    time::Duration,
-};
+use std::{env, process::exit};
 
 use rand::Rng;
-use raylib::{RaylibHandle, RaylibThread, camera::Camera2D, math::Vector2, prelude::*};
+use raylib::{RaylibHandle, RaylibThread, prelude::*};
 
 fn load_font(ram: &mut [u8]) {
     let font = [
@@ -279,7 +276,9 @@ fn decode_execute(
                 *program_counter -= 2;
             }
         }
-        op if op & 0xF0FF == 0xF029 => *index_register = 0x50 + general_purpose_registers[x] as u16,
+        op if op & 0xF0FF == 0xF029 => {
+            *index_register = 0x50 + (general_purpose_registers[x] as u16) * 5
+        }
         op if op & 0xF0FF == 0xF033 => {
             let mut decimal = general_purpose_registers[x];
             ram[*index_register as usize] = decimal % 10;
@@ -307,10 +306,10 @@ fn update_screen(rl: &mut RaylibHandle, thread: &RaylibThread, display: &mut [[b
         for x in 0..display[0].len() {
             if display[y][x] == true {
                 d.draw_rectangle(
-                    x as i32 * (window_width / 64),
-                    y as i32 * (window_height / 32),
-                    window_width / 64,
-                    window_height / 32,
+                    x as i32 * (WINDOW_WIDTH / 64),
+                    y as i32 * (WINDOW_HEIGHT / 32),
+                    WINDOW_WIDTH / 64,
+                    WINDOW_HEIGHT / 32,
                     Color::WHITE,
                 );
             }
@@ -318,8 +317,8 @@ fn update_screen(rl: &mut RaylibHandle, thread: &RaylibThread, display: &mut [[b
     }
 }
 
-const window_width: i32 = 1000;
-const window_height: i32 = 500;
+const WINDOW_WIDTH: i32 = 1024;
+const WINDOW_HEIGHT: i32 = 512;
 
 fn main() {
     let mut ram = [0 as u8; 4096];
@@ -332,19 +331,25 @@ fn main() {
     let mut general_purpose_registers = [0 as u8; 16];
 
     load_font(&mut ram[0x50..=0x9f]);
-    let rom = std::fs::read("./assets/roms/test_opcode.ch8").unwrap();
+
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("Provide program path!");
+        exit(0);
+    }
+    let rom = std::fs::read(&args[1]).unwrap();
     ram[0x200..0x200 + rom.len()].copy_from_slice(&rom[..rom.len()]);
 
     let mut cpu_clock = std::time::Instant::now();
     let mut update_clock = std::time::Instant::now();
 
     let (mut rl, thread) = raylib::init()
-        .size(window_width, window_height)
+        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
         .title("Hello, World")
         .build();
 
     while !rl.window_should_close() {
-        if cpu_clock.elapsed().as_micros() > 1000 {
+        if cpu_clock.elapsed().as_micros() > 1400 {
             cpu_clock = std::time::Instant::now();
 
             let opcode = fetch(&ram, &mut program_counter);
